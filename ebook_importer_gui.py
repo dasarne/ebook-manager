@@ -29,19 +29,20 @@ class EbookImporter:
         self.root.title("eBook Importer")
         self.root.geometry("800x600")
         
-        # Konfigurationsdatei
-        self.config_file = Path.home() / ".ebook_importer_config.json"
+        # Globale Konfigurationsdatei (XDG-konform)
+        self.config_dir = Path.home() / ".config" / "ebook-importer"
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+        self.config_file = self.config_dir / ".ebook_importer_config.json"
         self.config = self.load_config()
         
-        # Cache für Google Books API
+        # Cache für Google Books API (global)
         self.cache_dir = Path.home() / ".cache" / "ebook_metadata"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
-        # Benutzerdefinierte Mappings (lernfähig)
-        self.user_mappings_file = Path.home() / ".ebook_genre_mappings.json"
-        self.user_mappings = self.load_user_mappings()
-        
-        # Metadaten-Cache aus enriched_metadata.json
+        # Sammlungsspezifische Dateien (werden später gesetzt)
+        self.user_mappings_file = None
+        self.user_mappings = {}
+        self.enriched_file = None
         self.metadata_cache = {}
         
         # Genre-Mapping von Google Books zu deutschen Genres
@@ -107,6 +108,10 @@ class EbookImporter:
         
         self.create_widgets()
         
+        # Lade sammlungsspezifische Dateien falls Sammlung konfiguriert
+        if self.collection_var.get():
+            self.load_collection_specific_files()
+        
     def load_config(self):
         """Lädt gespeicherte Konfiguration"""
         if self.config_file.exists():
@@ -134,9 +139,23 @@ class EbookImporter:
         except Exception as e:
             self.log(f"Fehler beim Speichern der Konfiguration: {e}")
     
+    def load_collection_specific_files(self):
+        """Lädt sammlungsspezifische Konfigurationsdateien"""
+        collection_path = Path(self.collection_var.get())
+        if not collection_path.exists():
+            return
+        
+        # Genre-Mappings im Sammlungs-Ordner
+        self.user_mappings_file = collection_path / ".ebook_genre_mappings.json"
+        self.user_mappings = self.load_user_mappings()
+        
+        # Metadaten im Sammlungs-Ordner
+        self.enriched_file = collection_path / "enriched_metadata.json"
+        self.load_enriched_metadata()
+    
     def load_user_mappings(self):
-        """Lädt benutzerdefinierte Genre-Mappings"""
-        if self.user_mappings_file.exists():
+        """Lädt benutzerdefinierte Genre-Mappings aus Sammlungs-Ordner"""
+        if self.user_mappings_file and self.user_mappings_file.exists():
             try:
                 with open(self.user_mappings_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
@@ -154,9 +173,9 @@ class EbookImporter:
             self.log(f"Fehler beim Speichern der Mappings: {e}")
     
     def load_enriched_metadata(self):
-        """Lädt enriched_metadata.json falls vorhanden"""
-        # Prüfe im Schreibtisch-Verzeichnis
-        self.enriched_file = Path.home() / "Schreibtisch" / "enriched_metadata.json"
+        """Lädt enriched_metadata.json aus dem Sammlungs-Ordner"""
+        if not self.enriched_file:
+            return
         
         if not self.enriched_file.exists():
             # Erstelle leere Datei wenn nicht vorhanden
@@ -441,6 +460,8 @@ class EbookImporter:
             self.config['collection_path'] = path
             self.save_config()
             self.log(f"Buchsammlung geändert: {path}")
+            # Lade sammlungsspezifische Dateien neu
+            self.load_collection_specific_files()
     
     def browse_import(self):
         """Wählt Verzeichnis mit neuen Büchern aus"""

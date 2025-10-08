@@ -36,14 +36,11 @@ env/
 .DS_Store
 Thumbs.db
 
-# Projekt-spezifisch
+# Projekt-spezifisch (im Sammlungs-Ordner)
 enriched_metadata.json
+.ebook_genre_mappings.json
 empty_dirs_report.txt
 remaining_empty_dirs_report.txt
-
-# User-Konfiguration (sollte lokal bleiben)
-.ebook_importer_config.json
-.ebook_genre_mappings.json
 
 # Cache
 .cache/
